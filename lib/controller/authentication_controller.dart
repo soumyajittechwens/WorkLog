@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:techwens_pms/model/ProjectIdWiseWorklogsData.dart';
 import 'package:techwens_pms/ui/change_password.dart';
 import 'package:techwens_pms/ui/login_page.dart';
 import '../Utils/Shared Preference/shared_pref.dart';
@@ -12,6 +13,7 @@ import '../ui/home_page.dart';
 
 class AuthenticationController extends GetxController {
   ProjectListData? projectListData;
+  ProjectIdWiseWorkLogsData? projectIdWiseWorkLogsData;
   void login(String userName, String password, BuildContext context) async {
     if (userName.isEmpty) {
       Get.snackbar(
@@ -151,6 +153,40 @@ class AuthenticationController extends GetxController {
       }
     }
   }
+  void saveWorkLog(String projectId, String remarks, BuildContext context, Function(String, Color) showSnackbar) async {
+    if (projectId.isEmpty) {
+      Get.snackbar(
+        'Validation Errors',
+        'ProjectId: This field may not be blank.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    var data = await AuthenticationServices.saveWorkLog(
+        projectId, remarks);
+
+    if (data == null) {
+      Get.snackbar(
+        'Error',
+        'No response from server',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (data != null) {
+      if (data['status'] != null && data['status']) {
+        showSnackbar(data['message'], Colors.green);
+
+      } else {
+        showSnackbar(data['message'], Colors.red);
+      }
+    }
+  }
 
   void storeUserData(Map<String, dynamic> data) async {
     String token = data['token'];
@@ -178,6 +214,17 @@ class AuthenticationController extends GetxController {
         print("projectListData===$data");
       }
       projectListData = ProjectListData.fromJson(data);
+      update();
+    }
+  }
+  getProjectIdWiseWorkLogDataList(String projectId,Function() showButtonData) async {
+    var data = await AuthenticationServices().getProjectIdWiseWorkLogList(projectId);
+    if (data['status'] ) {
+      if (kDebugMode) {
+        print("projectListData===$data");
+      }
+      projectIdWiseWorkLogsData = ProjectIdWiseWorkLogsData.fromJson(data);
+      showButtonData();
       update();
     }
   }

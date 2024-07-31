@@ -195,6 +195,87 @@ class AuthenticationServices {
       return null;
     }
   }
+  static saveWorkLog(String projectId, String remarks) async {
+    try {
+      EasyLoading.show();
+      dioClient. Response response;
+      var mData = {
+        "projectId": projectId,
+        "remarks": remarks,
+      };
+
+      if (kDebugMode) {
+        print("mData===$mData");
+      }
+      response = await AuthenticationServices()._dio.post(
+        "api/worklog",
+        data: mData,
+        options: Options(contentType: "application/json"),
+      );
+
+
+      EasyLoading.dismiss();
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        return null;
+      }
+    } on DioError catch (dioError) {
+      EasyLoading.dismiss();
+      if (dioError.response != null) {
+        var data = dioError.response!.data;
+        if (data['errors'] != null) {
+          List<dynamic> errors = data['errors'];
+          print("data===$data");
+          String userErrorMessage = "";
+          try {
+            userErrorMessage = errors[0]['user'];
+            print("userErrorMessage===$userErrorMessage");
+          } catch (e) {}
+
+          if (userErrorMessage.isNotEmpty) {
+            Get.snackbar(
+              'Validation Errors',
+              '$userErrorMessage',
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: Colors.red,
+              colorText: Colors.white,
+            );
+          }
+        } else {
+          Get.snackbar(
+            'Error',
+            'Unknown validation error occurred.',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+
+        return null;
+      } else {
+        // Dio error without response, such as network issues
+        Get.snackbar(
+          'Network Error',
+          'Failed to connect to the server.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return null;
+      }
+    } catch (e) {
+      EasyLoading.dismiss();
+      Get.snackbar(
+        'Error',
+        'An unexpected error occurred.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return null;
+    }
+  }
 
   Future<dynamic> getProjectList() async {
     try {
@@ -203,6 +284,23 @@ class AuthenticationServices {
 
       response = await _dio.get(
         "api/project",
+        options: Options(contentType: "application/json"),
+      );
+
+      EasyLoading.dismiss();
+      return response.data;
+    } catch (e) {
+      print(e);
+      EasyLoading.dismiss();
+    }
+  }
+  Future<dynamic> getProjectIdWiseWorkLogList(String projectId) async {
+    try {
+      EasyLoading.show();
+      dioClient.Response response;
+
+      response = await _dio.get(
+        "api/worklog/$projectId",
         options: Options(contentType: "application/json"),
       );
 

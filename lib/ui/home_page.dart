@@ -4,7 +4,7 @@ import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_state_manager/src/simple/get_state.dart';
 import 'package:intl/intl.dart';
 import 'package:techwens_pms/controller/authentication_controller.dart';
-import 'package:techwens_pms/model/ProjectData.dart';
+import 'package:techwens_pms/model/ProjectIdWiseWorklogsData.dart';
 import 'package:techwens_pms/ui/login_page.dart';
 import 'package:techwens_pms/ui/profile_create_page.dart';
 import 'package:techwens_pms/widgets/custom_image_view.dart';
@@ -12,9 +12,8 @@ import 'package:techwens_pms/widgets/custom_image_view.dart';
 import '../Utils/Shared Preference/shared_pref.dart';
 import '../helper/ImageConstant.dart';
 import '../helper/colorConstant.dart';
-import '../model/checkInOutData.dart';
 import '../model/project_list_data.dart';
-
+import 'package:flutter/services.dart';
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -23,49 +22,63 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  bool isButtonClicked=false;
-  AuthenticationController authenticationController = Get.put(AuthenticationController());
+  bool isButtonClicked = false;
+  AuthenticationController authenticationController =
+      Get.put(AuthenticationController());
   late Stream<DateTime> timeStream;
   DateFormat dateFormat = DateFormat('dd-MMM-yyyy HH:mm:ss');
   ProjectListDetailsData? initialProject;
-  List<ProjectData> projectList = [
-    ProjectData(
-      projectId: 1,
-      projectName: "Tech base",
-      clientName: "Danny",
-    ),
-    ProjectData(
-      projectId: 2,
-      projectName: "Doctor Admin",
-      clientName: "Cyrus",
-    ),
-    ProjectData(
-      projectId: 3,
-      projectName: "Knight Hunt",
-      clientName: "Micheal",
-    )
-  ];
-  List<CheckInOutData> checkInCheckOutData = [
-    CheckInOutData(
-      checkInTime: "10:00 AM",
-      checkOutTime: "01:10 PM",
-    ),
-    CheckInOutData(
-      checkInTime: "02:15 PM",
-      checkOutTime: "05:50 PM",
-    ),
-    CheckInOutData(
-      checkInTime: "06:05 PM",
-      checkOutTime: "06:45 PM",
-    ),
-  ];
+
+  String date = "";
+
+  void showSnackBar(String data, Color backgroundColor) {
+    setState(() {
+      if (isButtonClicked) {
+        isButtonClicked = false;
+      } else {
+        isButtonClicked = true;
+      }
+    });
+
+    authenticationController.getProjectIdWiseWorkLogDataList(
+        initialProject!.id.toString(), () => showButtonData());
+
+    Get.snackbar(
+      'Success',
+      data,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: backgroundColor,
+      colorText: Colors.white,
+    );
+  }
+
+  void showButtonData() {
+    if (authenticationController.projectIdWiseWorkLogsData != null) {
+      if (authenticationController
+          .projectIdWiseWorkLogsData!.projectIdWiseDetailsData!.isNotEmpty) {
+        if (authenticationController
+                .projectIdWiseWorkLogsData!.projectIdWiseDetailsData![0].endTime
+                .toString() ==
+            'null') {
+          setState(() {
+            isButtonClicked = true;
+          });
+        } else {
+          setState(() {
+            isButtonClicked = false;
+          });
+        }
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     timeStream =
         Stream.periodic(const Duration(seconds: 1), (i) => DateTime.now());
-     isButtonClicked=false;
+    isButtonClicked = false;
+    date = formatDateWithSuffix(DateTime.now()).toString();
   }
 
   @override
@@ -80,39 +93,35 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             onPressed: () async {
               await SharedPrefUtils.setToken("");
+              authenticationController.projectIdWiseWorkLogsData = null;
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) =>  LoginScreen()),
+                MaterialPageRoute(builder: (context) => LoginScreen()),
               );
-
-
             },
             icon: const Icon(Icons.logout, color: Colors.white, size: 24),
           ),
-
         ],
       ),
       body: Container(
         color: ColorConstant.background_color,
         child: SafeArea(
-          child:
-          GetBuilder(
+          child: GetBuilder(
             init: authenticationController,
             initState: (c) {
               authenticationController.getProjectList();
-              },
+            },
             builder: (c) {
-              return
-                Column(
+              return Column(
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(
-                        top: 30.0, left: 20.0, right: 20.0, bottom: 10.0),
+                        top: 10.0, left: 20.0, right: 20.0, bottom: 10.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                         Row(
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
@@ -124,9 +133,8 @@ class _HomePageState extends State<HomePage> {
                                   fontWeight: FontWeight.bold),
                             ),
                             Text(
-
-                              formatDateWithSuffix(DateTime.now()).toString(),
-                              style: TextStyle(
+                              date,
+                              style: const TextStyle(
                                   color: Colors.black,
                                   fontSize: 18,
                                   fontFamily: 'Poppins',
@@ -134,77 +142,127 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 25),
-                        authenticationController.projectListData?.response!=null?
-                        Column(
-                          children: [
-                            authenticationController.projectListData!.response!.isNotEmpty
-                                ? Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                _buildProjectListDropDownItem( authenticationController.projectListData!.response!),
-                              ],
-                            )
-                                : Container(),
-                            const SizedBox(height: 5),
-                          ],
-                        ):
-                        Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                _buildProjectListDropDownItem([]),
-                              ],
-                            ),
-                            const SizedBox(height: 5),
-                          ],
-                        ),
-                        const SizedBox(height: 25),
+                        const SizedBox(height: 15),
+                        authenticationController.projectListData?.response !=
+                                null
+                            ? Column(
+                                children: [
+                                  authenticationController
+                                          .projectListData!.response!.isNotEmpty
+                                      ? Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                          children: [
+                                            _buildProjectListDropDownItem(
+                                                authenticationController
+                                                    .projectListData!
+                                                    .response!),
+                                          ],
+                                        )
+                                      : Container(),
+                                  const SizedBox(height: 5),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    children: [
+                                      _buildProjectListDropDownItem([]),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 5),
+                                ],
+                              ),
+                        const SizedBox(height: 5),
+                        if (authenticationController
+                                    .projectIdWiseWorkLogsData !=
+                                null &&
+                            authenticationController.projectIdWiseWorkLogsData!
+                                .projectIdWiseDetailsData!.isNotEmpty)
+                          if (authenticationController
+                                  .projectIdWiseWorkLogsData!
+                                  .projectIdWiseDetailsData![0]
+                                  .endTime
+                                  .toString() ==
+                              'null')
+                            const Text(
+                                textAlign: TextAlign.center,
+                                "* Please complete your current project then move to another project",
+                                style: TextStyle(
+                                    color: ColorConstant.textSecondColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold))
+                          else
+                            Container(),
+                        const SizedBox(height: 5),
                         GestureDetector(
-                          onTap: (){
-                            setState(() {
-                              if(isButtonClicked)
-                              {
-                                isButtonClicked=false;
-                              }
-                              else
-                              {
-                                isButtonClicked=true;
-                              }
-
-                            });
+                          onTap: () {
+                            if (initialProject == null) {
+                              Get.snackbar(
+                                'Error',
+                                "Please choose project",
+                                snackPosition: SnackPosition.TOP,
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white,
+                              );
+                              return;
+                            }
+                            HapticFeedback.vibrate();
+                            authenticationController.saveWorkLog(
+                                initialProject!.id.toString(),
+                                "start the task successfully.",
+                                context,
+                                (message, color) =>
+                                    showSnackBar(message, color));
                           },
                           child: Center(
                             child: Container(
-                              decoration: const BoxDecoration(
-                                  shape: BoxShape.circle),
+                              decoration:
+                                  const BoxDecoration(shape: BoxShape.circle),
                               child: Padding(
                                 padding: const EdgeInsets.all(5.0),
                                 child: CustomImageView(
-                                    imagePath: isButtonClicked?ImageConstant.stop_image:ImageConstant.start_image,
-
-                                    height: 150,
-                                    width: 150),
+                                    imagePath: isButtonClicked
+                                        ? ImageConstant.stop_image
+                                        : ImageConstant.start_image,
+                                    height: 130,
+                                    width: 130),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 25),
-                        const Center(
-                          child: Text(
-                            '2hr 30 m',
-                            style: TextStyle(
-                                color: ColorConstant.textSecondColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 25),
-                            textAlign: TextAlign.center,
-                          ),
+                        const SizedBox(height: 5),
+                        Center(
+                          child: authenticationController
+                                      .projectIdWiseWorkLogsData !=
+                                  null
+                              ? Text(
+                                  DateFormat("HH'H' mm'M'").format(
+                                      DateFormat("HH:mm").parse(
+                                          authenticationController
+                                              .projectIdWiseWorkLogsData!
+                                              .additional!
+                                              .duration
+                                              .toString())),
+                                  style: const TextStyle(
+                                      color: ColorConstant.textSecondColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 25),
+                                  textAlign: TextAlign.center,
+                                )
+                              : const Text(
+                                  '00:00',
+                                  style: TextStyle(
+                                      color: ColorConstant.textSecondColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 25),
+                                  textAlign: TextAlign.center,
+                                ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 15),
                   Expanded(
                     child: ClipRRect(
                       borderRadius: const BorderRadius.only(
@@ -213,15 +271,20 @@ class _HomePageState extends State<HomePage> {
                       ),
                       child: Container(
                         color: Colors.grey[200], // Differentiate color
-                        child:  Padding(
+                        child: Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Column(
                             children: [
                               const Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   Padding(
-                                    padding: EdgeInsets.only(left: 12.0,top: 12.0,bottom: 12.0,right: 50.0),
+                                    padding: EdgeInsets.only(
+                                        left: 12.0,
+                                        top: 12.0,
+                                        bottom: 12.0,
+                                        right: 50.0),
                                     child: Text(
                                       "Start",
                                       style: TextStyle(
@@ -229,7 +292,11 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                   Padding(
-                                    padding: EdgeInsets.only(left: 30.0,top: 12.0,bottom: 12.0,right: 12.0),
+                                    padding: EdgeInsets.only(
+                                        left: 30.0,
+                                        top: 12.0,
+                                        bottom: 12.0,
+                                        right: 12.0),
                                     child: Text(
                                       "End",
                                       style: TextStyle(
@@ -238,19 +305,54 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ],
                               ),
-                              const Divider(color: Colors.black,height: 5,),
-                              Column(children: [
-                                checkInCheckOutData.isNotEmpty?
-                                SizedBox(
-                                  height: 250,
-                                  child: ListView.builder(
-                                    itemCount: checkInCheckOutData.length,
-                                    itemBuilder: (BuildContext context, int index) {
-                                      return _showCheckInCheckOutView(context, checkInCheckOutData[index],);
-                                    },
-                                  ),
-                                ):Container(),
-                              ],)
+                              const Divider(
+                                color: Colors.black,
+                                height: 5,
+                              ),
+                              authenticationController.projectIdWiseWorkLogsData
+                                          ?.projectIdWiseDetailsData !=
+                                      null
+                                  ? Column(
+                                      children: [
+                                        authenticationController
+                                                .projectIdWiseWorkLogsData!
+                                                .projectIdWiseDetailsData!
+                                                .isNotEmpty
+                                            ? SizedBox(
+                                                height: 250,
+                                                child: ListView.builder(
+                                                  itemCount: authenticationController
+                                                      .projectIdWiseWorkLogsData
+                                                      ?.projectIdWiseDetailsData!
+                                                      .length,
+                                                  itemBuilder:
+                                                      (BuildContext context,
+                                                          int index) {
+                                                    return _showCheckInCheckOutView(
+                                                        context,
+                                                        authenticationController
+                                                            .projectIdWiseWorkLogsData!
+                                                            .projectIdWiseDetailsData![index]);
+                                                  },
+                                                ),
+                                              )
+                                            : Container(),
+                                      ],
+                                    )
+                                  : const Column(
+                                      children: [
+                                        Padding(
+                                          padding: EdgeInsets.only(top: 24.0),
+                                          child: Text(
+                                            "Please choose project to show your work log",
+                                            style: TextStyle(
+                                                color: Colors.black,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                        )
+                                      ],
+                                    )
                               // Add more widgets here as needed
                             ],
                           ),
@@ -262,37 +364,39 @@ class _HomePageState extends State<HomePage> {
               );
             },
           ),
-
-
-
-
         ),
       ),
     );
   }
-  Widget _showCheckInCheckOutView(BuildContext context, CheckInOutData checkInCheckOutData) {
+
+  Widget _showCheckInCheckOutView(
+      BuildContext context, ProjectIdWiseDetailsData checkInCheckOutData) {
     return GestureDetector(
       onTap: () {
         // Navigate to the new page and pass the patient data
       },
-      child:
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 12.0,top: 12.0,bottom: 12.0,right: 30.0),
+            padding: const EdgeInsets.only(left: 60.0, top: 12.0, bottom: 12.0),
             child: Text(
-              checkInCheckOutData.checkInTime.toString(),
-              style: const TextStyle(
-                  color: Colors.black, fontSize: 18),
+              DateFormat('hh:mm a').format(
+                  DateTime.parse(checkInCheckOutData.startTime.toString())
+                      .toLocal()),
+              style: const TextStyle(color: Colors.black, fontSize: 18),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(left: 30.0,top: 12.0,bottom: 12.0,right: 12.0),
+            padding:
+                const EdgeInsets.only(top: 12.0, bottom: 12.0, right: 60.0),
             child: Text(
-              checkInCheckOutData.checkOutTime.toString(),
-              style: const TextStyle(
-                  color: Colors.black, fontSize: 18),
+              checkInCheckOutData.endTime != null
+                  ? DateFormat('hh:mm a').format(
+                      DateTime.parse(checkInCheckOutData.endTime.toString())
+                          .toLocal())
+                  : "",
+              style: const TextStyle(color: Colors.black, fontSize: 18),
             ),
           ),
         ],
@@ -300,7 +404,22 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildProjectListDropDownItem(List<ProjectListDetailsData> projectData) {
+  Widget _buildProjectListDropDownItem(
+      List<ProjectListDetailsData> projectData) {
+    bool isDropdownEnabled = false;
+
+    if (authenticationController.projectIdWiseWorkLogsData != null) {
+      if (authenticationController
+          .projectIdWiseWorkLogsData!.projectIdWiseDetailsData!.isNotEmpty) {
+        isDropdownEnabled =
+            authenticationController.projectIdWiseWorkLogsData != null &&
+                authenticationController.projectIdWiseWorkLogsData!
+                        .projectIdWiseDetailsData![0].endTime
+                        .toString() ==
+                    'null';
+      }
+    }
+
     return Expanded(
       child: Container(
         decoration: BoxDecoration(
@@ -314,15 +433,16 @@ class _HomePageState extends State<HomePage> {
             children: [
               if (initialProject != null) ...[
                 Padding(
-                  padding: const EdgeInsets.only(left: 24.0,top: 8.0),
+                  padding: const EdgeInsets.only(left: 24.0, top: 8.0),
                   child: Text(
                     initialProject!.client ?? '',
                     textAlign: TextAlign.start,
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.black,fontSize: 14),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                        fontSize: 14),
                   ),
                 ),
-
               ],
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -352,24 +472,34 @@ class _HomePageState extends State<HomePage> {
                         ),
                       );
                     }).toList(),
-                    onChanged: (ProjectListDetailsData? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          initialProject = newValue;
-                        });
-                      }
-                    },
+                    onChanged: isDropdownEnabled
+                        ? null
+                        : (ProjectListDetailsData? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                initialProject = newValue;
+                                date = formatDateWithSuffix(DateTime.now())
+                                    .toString();
+                                if (initialProject != null) {
+                                  print(
+                                      "Id===${initialProject!.id.toString()}");
+                                  authenticationController
+                                      .getProjectIdWiseWorkLogDataList(
+                                          initialProject!.id.toString(),
+                                          () => showButtonData());
+                                }
+                              });
+                            }
+                          },
                     icon: const Icon(Icons.arrow_drop_down),
                   ),
                 ),
               ),
-
             ],
           ),
         ),
       ),
     );
-
   }
 
   String greetingMessage(String Name) {
@@ -405,6 +535,4 @@ class _HomePageState extends State<HomePage> {
     String dayWithSuffix = getDayWithSuffix(date.day);
     return '$month, $dayWithSuffix';
   }
-
-
 }
